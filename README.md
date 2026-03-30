@@ -112,7 +112,7 @@ Dois métodos avaliados após o tuning individual:
 ## Como reproduzir
 
 ```bash
-git clone https://github.com/SEU_USUARIO/titanic-kaggle.git
+git clone https://github.com/dariokrugerjunior/titanic-kaggle.git
 cd titanic-kaggle
 pip install pandas numpy scikit-learn xgboost lightgbm matplotlib
 ```
