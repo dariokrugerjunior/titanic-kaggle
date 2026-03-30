@@ -1,74 +1,91 @@
-# 🚢 Titanic — Previsão de Sobrevivência
+# Titanic — Previsão de Sobrevivência
 
-Solução completa para a competição [Titanic - Machine Learning from Disaster](https://www.kaggle.com/competitions/titanic) do Kaggle.
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
+![Pandas](https://img.shields.io/badge/Pandas-2.x-150458?style=flat-square&logo=pandas&logoColor=white)
+![Scikit-learn](https://img.shields.io/badge/Scikit--learn-1.x-F7931E?style=flat-square&logo=scikit-learn&logoColor=white)
+![XGBoost](https://img.shields.io/badge/XGBoost-2.x-189FDD?style=flat-square)
+![LightGBM](https://img.shields.io/badge/LightGBM-4.x-02B875?style=flat-square)
+![Kaggle](https://img.shields.io/badge/Kaggle-Titanic-20BEFF?style=flat-square&logo=kaggle&logoColor=white)
+![CV Accuracy](https://img.shields.io/badge/CV%20Accuracy-84.62%25-2ea44f?style=flat-square)
 
-## 📊 Resultado Final
+Solução para a competição [Titanic - Machine Learning from Disaster](https://www.kaggle.com/competitions/titanic) do Kaggle, com pipeline completo de engenharia de atributos, seleção automática via RFECV, ajuste de hiperparâmetros e ensemble de modelos.
+
+---
+
+## Resultado
 
 | Métrica | Valor |
 |---|---|
-| Acurácia CV (5 folds) | **84.62%** |
-| Modelo vencedor | **XGBoost** |
+| Acurácia CV (StratifiedKFold, 5 folds) | 84.62% |
+| Desvio padrão | ±1.23% |
+| Modelo final | XGBoost |
 
 ---
 
-## 🗂️ Estrutura do projeto
+## Estrutura do repositório
 
 ```
 titanic-kaggle/
-│
-├── notebook_melhorado.ipynb   # Pipeline completo
+├── main.ipynb                 # Pipeline completo
 ├── submissao.csv              # Arquivo de submissão gerado
-├── curva_rfecv.png            # Curva de seleção de atributos
-├── importancia_atributos.png  # Importância dos atributos (XGBoost)
-└── README.md                  # Este arquivo
+├── curva_rfecv.png            # Curva de seleção de atributos (RFECV)
+├── importancia_atributos.png  # Importância dos atributos via XGBoost
+└── README.md
 ```
 
 ---
 
-## 🔧 Pipeline
+## Pipeline
 
-### 1. Engenharia de atributos
-Criação de novas variáveis a partir dos dados brutos:
+### Engenharia de atributos
+
+Criação de variáveis derivadas a partir dos dados brutos:
 
 | Atributo | Descrição |
 |---|---|
-| `TamanhoFamilia` | Número total de membros da família a bordo |
-| `Sozinho` | Flag: passageiro viajou sozinho? |
-| `GrupoFamilia` | Categoria: sozinho / pequena / grande |
-| `Titulo` | Título extraído do nome (Mr, Mrs, Miss, Raro...) |
-| `TemCabine` | Flag: possui cabine registrada? |
-| `DeckCabine` | Letra do deck da cabine (A–G) |
-| `FreqBilhete` | Número de passageiros com o mesmo bilhete |
-| `TarifaPorPessoa` | Tarifa dividida pelo grupo do bilhete |
-| `FaixaIdade` | Faixa etária (criança / adolescente / adulto / meia-idade / idoso) |
-| `FaixaTarifa` | Quartil da tarifa (baixa / média / alta / muito-alta) |
+| `TamanhoFamilia` | Total de membros da família a bordo |
+| `Sozinho` | Flag binária: viajou sem acompanhantes |
+| `GrupoFamilia` | Categoria do grupo: sozinho / pequena / grande |
+| `Titulo` | Título extraído do nome (Mr, Mrs, Miss, Raro) |
+| `TemCabine` | Flag binária: possui cabine registrada |
+| `DeckCabine` | Letra do deck extraída do número da cabine |
+| `FreqBilhete` | Quantidade de passageiros com o mesmo número de bilhete |
+| `TarifaPorPessoa` | Tarifa normalizada pelo tamanho do grupo no bilhete |
+| `FaixaIdade` | Discretização da idade em faixas etárias |
+| `FaixaTarifa` | Discretização da tarifa em quartis |
 
-### 2. Tratamento de nulos
-- **Idade**: preenchida com a mediana por `Pclass` + `Sexo` (calculada apenas no treino)
-- **Porto de embarque**: preenchido com a moda do treino
-- **Tarifa**: preenchida com a mediana do treino
+### Tratamento de valores nulos
 
-### 3. Seleção de atributos (RFECV)
-Eliminação recursiva de atributos com validação cruzada (`RFECV`) usando XGBoost como estimador base. Remove automaticamente atributos redundantes ou ruidosos.
+- **Idade**: mediana segmentada por `Pclass` e `Sexo`, calculada exclusivamente no conjunto de treino para evitar vazamento de dados
+- **Porto de embarque**: substituído pela moda do treino
+- **Tarifa**: substituída pela mediana do treino (1 ocorrência no teste)
 
-### 4. Ajuste de hiperparâmetros
-`GridSearchCV` com `StratifiedKFold(5)` aplicado individualmente em:
-- 🌲 Floresta Aleatória (`RandomForestClassifier`)
-- ⚡ XGBoost (`XGBClassifier`)
-- 💡 LightGBM (`LGBMClassifier`)
+### Seleção de atributos
 
-### 5. Ensemble
-Dois métodos de combinação avaliados:
-- **Votação suave**: média das probabilidades dos 3 modelos
-- **Empilhamento**: RF + XGB + LGB como base, Regressão Logística como meta-modelo
+`RFECV` com XGBoost como estimador base e `StratifiedKFold(5)` como estratégia de validação. Elimina recursivamente atributos redundantes ou sem poder preditivo, determinando automaticamente o subconjunto ótimo.
+
+### Ajuste de hiperparâmetros
+
+`GridSearchCV` com `StratifiedKFold(5)` aplicado individualmente a cada modelo:
+
+- `RandomForestClassifier` — grade sobre `n_estimators`, `max_depth`, `min_samples_split`, `max_features`
+- `XGBClassifier` — grade sobre `n_estimators`, `max_depth`, `learning_rate`, `subsample`, `colsample_bytree`
+- `LGBMClassifier` — grade sobre `n_estimators`, `max_depth`, `learning_rate`, `num_leaves`, `subsample`
+
+### Ensemble
+
+Dois métodos avaliados após o tuning individual:
+
+- **Votação suave** — média ponderada das probabilidades dos 3 modelos
+- **Empilhamento** — RF, XGB e LGB como modelos base; Regressão Logística como meta-modelo
 
 ---
 
-## 📈 Comparação dos modelos
+## Comparação de modelos
 
 | Modelo | Acurácia CV | Desvio Padrão |
 |---|---|---|
-| **XGBoost** | **84.62%** | ±1.23% |
+| XGBoost | **84.62%** | ±1.23% |
 | Empilhamento | 84.28% | ±1.80% |
 | Votação suave | 83.61% | ±1.77% |
 | Floresta Aleatória | 83.28% | ±1.17% |
@@ -76,7 +93,9 @@ Dois métodos de combinação avaliados:
 
 ---
 
-## 🏆 Top atributos (XGBoost)
+## Importância dos atributos
+
+![Importância dos atributos](importancia_atributos.png)
 
 | Atributo | Importância |
 |---|---|
@@ -86,32 +105,16 @@ Dois métodos de combinação avaliados:
 | `FreqBilhete` | 7.9% |
 | `TemCabine` | 7.4% |
 
-> **Insight principal:** `Titulo_Mr` domina com quase metade do poder preditivo — homens adultos foram os que mais morreram pela regra "mulheres e crianças primeiro".
+`Titulo_Mr` concentra quase metade do poder preditivo do modelo. Homens adultos apresentaram taxa de sobrevivência significativamente inferior em decorrência da política de evacuação prioritária para mulheres e crianças. O título captura essa informação de forma mais granular do que a variável `Sex` isoladamente, tornando-a redundante após a seleção de atributos.
 
 ---
 
-## 🛠️ Tecnologias utilizadas
+## Como reproduzir
 
-![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python)
-![Pandas](https://img.shields.io/badge/Pandas-2.x-lightblue?logo=pandas)
-![Scikit--learn](https://img.shields.io/badge/Scikit--learn-1.x-orange?logo=scikit-learn)
-![XGBoost](https://img.shields.io/badge/XGBoost-2.x-red)
-![LightGBM](https://img.shields.io/badge/LightGBM-4.x-green)
-
----
-
-## 🚀 Como reproduzir
-
-1. Clone o repositório:
 ```bash
 git clone https://github.com/SEU_USUARIO/titanic-kaggle.git
-```
-
-2. Instale as dependências:
-```bash
+cd titanic-kaggle
 pip install pandas numpy scikit-learn xgboost lightgbm matplotlib
 ```
 
-3. Faça o download dos dados na [página da competição](https://www.kaggle.com/competitions/titanic/data) e coloque na pasta `/kaggle/input/titanic/`
-
-4. Execute o notebook `notebook_melhorado.ipynb`
+Faça o download dos dados na [página da competição](https://www.kaggle.com/competitions/titanic/data) e coloque os arquivos `train.csv` e `test.csv` em `/kaggle/input/titanic/`. Em seguida, execute o notebook `main.ipynb`.
